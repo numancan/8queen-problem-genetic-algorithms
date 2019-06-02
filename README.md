@@ -1,1 +1,1 @@
-# Solving 8 Queens Problem using Genetic Algorithm
+# Solving 8 queens problem using genetic algorithm
