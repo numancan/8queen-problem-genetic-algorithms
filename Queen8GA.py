@@ -3,9 +3,9 @@ import random
 import time
 import operator
 
-POPULATION_SIZE = 100
-MUTATION_RATE = 20
-FITNESS_THRESHOLD = 2
+POPULATION_SIZE = 500
+MUTATION_RATE = 30
+FITNESS_THRESHOLD = 3
 
 
 class Genome():
@@ -23,7 +23,7 @@ class GenericAlgorithm():
         for x in range(size):
             newGenome = Genome()
             newGenome.chromosomes = random.sample(range(0, 8), 8)
-            newGenome.fitness = self.CalculateFitness(newGenome.chromosomes)
+            newGenome.fitness = self.Evaluate(newGenome.chromosomes)
             self.population.append(newGenome)
 
     def SetChessBoard(self, chromo):
@@ -33,13 +33,16 @@ class GenericAlgorithm():
             chessboard[y][i] = 1
         return chessboard
 
-    def CalculateFitness(self, chromosomes):
+    # Evaluating system controls horizontal and cross direction.
+    # Every collision between another queen increases fitness value.
+    # Best fitness value is zero.
+    def Evaluate(self, chromosomes):
         chessboard = self.SetChessBoard(chromosomes)
         calculated_fitness = 0
 
-        # Horizantal Control
+        # Horizontal Control
         for i in range(8):
-            count = np.count_nonzero(chessboard[i] == 1)
+            count = np.count_nonzero(chessboard[i])
             if count > 1:
                 calculated_fitness += count - 1
 
@@ -86,64 +89,41 @@ class GenericAlgorithm():
 
         return calculated_fitness
 
-    def roulette_selection(self, fitness):
-        sorted_indexed_weights = sorted(enumerate(fitness), key=operator.itemgetter(1))
-        indices, sorted_weights = zip(*sorted_indexed_weights)
-        tot_sum = sum(sorted_weights)
-        prob = [x / tot_sum for x in sorted_weights]
-        cum_prob = np.cumsum(prob)
-        random_num = random.random()
+    def RouletteWheelSelection(self):
+        max = sum(genom.fitness for genom in self.population)
+        pick = random.uniform(0, max)
+        current = 0
+        for genom in self.population:
+            current += genom.fitness
+            if current > pick:
+                return genom
 
-        for index_value, cum_prob_value in zip(indices, cum_prob):
-            if random_num > cum_prob_value:
-                return index_value
+    def OnePointCrossover(self):
+        parent1 = self.RouletteWheelSelection().chromosomes
+        parent2 = self.population[random.randrange(0, len(self.population))].chromosomes
 
-    def SelectParentMakeCrossover(self):
-
-        fitness_list = [genom.fitness for genom in self.population]
-        index = self.roulette_selection(fitness_list)
-        if index is not None:
-            selected_genom = self.population[index]
-        else:
-            selected_genom = self.population[random.randrange(0, len(self.population))]
-        random_genom = self.population[random.randrange(0, len(self.population))]
-
-        # If selected genom and random selected genom is same, try again
-        if selected_genom == random_genom:
-            self.SelectParentMakeCrossover()
-        else:
-            self.Crossover(random_genom.chromosomes, selected_genom.chromosomes)
-
-    def Crossover(self, parent1, parent2):
         point = random.randint(2, 6)
         child = Genome()
         child.chromosomes = parent1[0:point]
         child.chromosomes.extend(parent2[point:8])
-        child.fitness = self.CalculateFitness(child.chromosomes)
+        child.fitness = self.Evaluate(child.chromosomes)
 
-        self.population.append(child)
         if random.randrange(0, 100) < MUTATION_RATE:
             self.Mutation(child.chromosomes)
-
-        child = Genome()
-        child.chromosomes = parent2[0:point]
-        child.chromosomes.extend(parent1[point:8])
-        child.fitness = self.CalculateFitness(child.chromosomes)
-        self.population.append(child)
-        if random.randrange(0, 100) < MUTATION_RATE:
-            self.Mutation(child.chromosomes)
-
-    def KillWitness(self):
-        for genom in self.population:
-            if genom.fitness > FITNESS_THRESHOLD:
-                self.population.remove(genom)
+        else:
+            self.population.append(child)
 
     def Mutation(self, chromo):
         chromo[random.randrange(0, 8)] = random.randrange(0, 8)
         newGenome = Genome()
         newGenome.chromosomes = chromo
-        newGenome.fitness = self.CalculateFitness(newGenome.chromosomes)
+        newGenome.fitness = self.Evaluate(newGenome.chromosomes)
         self.population.append(newGenome)
+
+    def KillWitness(self):
+        for genom in self.population:
+            if genom.fitness > FITNESS_THRESHOLD:
+                self.population.remove(genom)
 
     def ControlResult(self):
         for genom in self.population:
@@ -151,29 +131,24 @@ class GenericAlgorithm():
                 self.result = genom.chromosomes
 
     def Start(self):
+        # If can't found result, reset and try again
         while self.result is None:
-
             self.population = []
             self.generation = 0
 
-            # Create new population have random chromosomes
             self.CreateNewPopulation(POPULATION_SIZE)
-            print("******Created New Population******")
-            # Kill population in after 3 generation
-            while self.generation < 3 and self.result is None:
-                # Calculate every new person fitness
-                for genom in self.population:
-                    genom.fitness = self.CalculateFitness(genom.chromosomes)
+            print("******New Population Created******")
+            while self.generation < 30 and self.result is None:
 
-                for x in range(len(self.population)):
-                    self.SelectParentMakeCrossover()
+                for x in range(int(len(self.population) / 2)):
+                    self.OnePointCrossover()
 
                 self.KillWitness()
                 self.ControlResult()
                 self.generation += 1
                 print("POPULATION=", len(self.population), "GENERATION=", self.generation)
 
-        chessboard = self.set_chessboard(self.result)
+        chessboard = self.SetChessBoard(self.result)
         print(chessboard)
         print("Found in {0}. generation".format(self.generation))
 
