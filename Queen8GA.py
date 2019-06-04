@@ -126,7 +126,7 @@ class GenericAlgorithm():
         newGenome.fitness = self.Evaluate(newGenome.chromosomes)
         self.population.append(newGenome)
 
-    def KillWitness(self):
+    def KillWeakness(self):
         for genom in self.population:
             if genom.fitness > FITNESS_THRESHOLD:
                 self.population.remove(genom)
@@ -149,7 +149,7 @@ class GenericAlgorithm():
                 for x in range(int(len(self.population) / 2)):
                     self.OnePointCrossover()
 
-                self.KillWitness()
+                self.KillWeakness()
                 self.ControlResult()
                 self.generation += 1
                 print("POPULATION=", len(self.population), "GENERATION=", self.generation)
